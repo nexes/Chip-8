@@ -5,6 +5,6 @@ fn main() {
     let cpu = CPU::init();
     let mut sys = System::create(cpu, mem);
 
-    sys.load_rom("test_opcode.ch8").expect("Load ROM failed");
+    sys.load_rom("test_opcode.ch8").expect("Loaded ROM failed");
     sys.run();
 }
