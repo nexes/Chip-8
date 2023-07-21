@@ -1,16 +1,19 @@
 // Chip-8 memory is 4096 bytes, byte addressable from 0x000 to 0xFFF inclusive.
 // The programs (ROM) will start at location 0x200
 // Memory address are 12 bits wide, giving Chip-8 2^12 (4096) memory address
+// The stack is an array of 16 16bit values used to store return address for subroutines
 pub struct Memory {
     rom_location: u16,
-    stack: [u8; 0x1000],
+    ram: [u8; 0x1000],
+    stack: [u16; 16],
 }
 
 impl Memory {
     pub fn allocate() -> Memory {
         let mut mem = Memory {
             rom_location: 0x200,
-            stack: [0; 0x1000],
+            ram: [0; 0x1000],
+            stack: [0; 16],
         };
 
         // load the static font starting at memory location 0x000
@@ -22,7 +25,7 @@ impl Memory {
     // at memory location 0x200.
     pub(crate) fn write_rom_data(&mut self, data: Vec<u8>) {
         for offset in 0..data.len() {
-            self.stack[self.rom_location as usize + offset] = data[offset];
+            self.ram[self.rom_location as usize + offset] = data[offset];
         }
     }
 
@@ -49,7 +52,7 @@ impl Memory {
         ];
 
         for i in 0..fonts.len() {
-            self.stack[i] = fonts[i];
+            self.ram[i] = fonts[i];
         }
     }
 
@@ -61,8 +64,8 @@ impl Memory {
             return Err(stringify!("Invalid memory location: {}", loc).to_string());
         }
 
-        let msb: u16 = self.stack[loc as usize] as u16;
-        let lsb: u16 = self.stack[loc as usize + 1] as u16;
+        let msb: u16 = self.ram[loc as usize] as u16;
+        let lsb: u16 = self.ram[loc as usize + 1] as u16;
         let data: u16 = (msb << 8) | lsb;
 
         Ok(data)
@@ -74,22 +77,25 @@ impl Memory {
             return Err(stringify!("Invalid memory location: {}", loc).to_string());
         }
 
-        Ok(self.stack[loc as usize])
+        Ok(self.ram[loc as usize])
     }
 
     // print the contents of the stack from 0x000 to 0xFFF inclusive
-    pub(crate) fn print_stack(&self) {
+    pub(crate) fn print_memory(&self) {
         let mut addr: u16 = 0x000;
 
         print!("{:#09x}  ", addr);
-        for i in 0..self.stack.len() {
+        for i in 0..self.ram.len() {
             if i > 0 && i % 8 == 0 {
                 addr += 8;
                 print!("\n{:#09x}  ", addr);
             }
 
-            print!("{:#04x} ", self.stack[i]);
+            print!("{:#04x} ", self.ram[i]);
         }
         println!("");
     }
+
+    // print the contents of the stack
+    pub(crate) fn print_stack(&self) {}
 }
