@@ -1,17 +1,16 @@
+// Chip-8 memory is 4096 bytes, byte addressable from 0x000 to 0xFFF inclusive.
+// The programs (ROM) will start at location 0x200
+// Memory address are 12 bits wide, giving Chip-8 2^12 (4096) memory address
 pub struct Memory {
     rom_location: u16,
-    stack: Vec<u8>,
+    stack: [u8; 0x1000],
 }
 
 impl Memory {
     pub fn allocate() -> Memory {
         let mut mem = Memory {
-            // Chip-8 programs will start at location 0x200
             rom_location: 0x200,
-
-            // stack size is 4096 bytes with addressable memory from
-            // 0x000 to 0xFFF inclusive with a WORD size of 12 bits
-            stack: vec![0; 0x1000],
+            stack: [0; 0x1000],
         };
 
         // load the static font starting at memory location 0x000
@@ -52,6 +51,31 @@ impl Memory {
         for i in 0..fonts.len() {
             self.stack[i] = fonts[i];
         }
+    }
+
+    // loc is the memory address likely taken from the PC register.
+    // word length is 12 bits. If the location is greater than
+    // 0xFFF and error is returned. Chip-8 instructions are 2 bytes
+    // long stored in big-endian
+    pub(crate) fn read_word(&self, loc: u16) -> Result<u16, String> {
+        if loc > 0xFFF {
+            return Err(stringify!("Invalid memory location: {}", loc).to_string());
+        }
+
+        let msb: u16 = self.stack[loc as usize] as u16;
+        let lsb: u16 = self.stack[loc as usize + 1] as u16;
+        let data: u16 = (msb << 8) | lsb;
+
+        Ok(data)
+    }
+
+    // read a single 8 bit value from memory location loc
+    pub(crate) fn read_byte(&self, loc: u16) -> Result<u8, String> {
+        if loc > 0xFFF {
+            return Err(stringify!("Invalid memory location: {}", loc).to_string());
+        }
+
+        Ok(self.stack[loc as usize])
     }
 
     // print the contents of the stack from 0x000 to 0xFFF inclusive
