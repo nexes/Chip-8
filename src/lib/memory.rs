@@ -54,9 +54,8 @@ impl Memory {
     }
 
     // loc is the memory address likely taken from the PC register.
-    // word length is 12 bits. If the location is greater than
-    // 0xFFF and error is returned. Chip-8 instructions are 2 bytes
-    // long stored in big-endian
+    // If the location is greater than 0xFFF and error is returned.
+    // Chip-8 instructions are 2 bytes long stored in big-endian
     pub(crate) fn read_word(&self, loc: u16) -> Result<u16, String> {
         if loc > 0xFFF {
             return Err(stringify!("Invalid memory location: {}", loc).to_string());
