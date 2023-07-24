@@ -16,6 +16,8 @@ pub(crate) struct Instruction {
     nnn: u16,
 }
 
+// impl index create an enum???
+
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.itype {
@@ -76,5 +78,35 @@ impl Instruction {
             kk: (data & 0x00FF) as u8,
             nnn: (data & 0x0FFF),
         }
+    }
+
+    // return the instruction type
+    pub(crate) fn itype(&self) -> u8 {
+        self.itype
+    }
+
+    // return the instruction n (lowest 4 bits)
+    pub(crate) fn n(&self) -> u8 {
+        self.n
+    }
+
+    // return the instruction x (lower 4 bits of the high byte)
+    pub(crate) fn x(&self) -> u8 {
+        self.x
+    }
+
+    // return the instruction y (upper 4 bits of the low byte)
+    pub(crate) fn y(&self) -> u8 {
+        self.y
+    }
+
+    // return the instruction kk (lowest 8 bits)
+    pub(crate) fn kk(&self) -> u8 {
+        self.kk
+    }
+
+    // return the instruction nnn (lowest 12 bits)
+    pub(crate) fn nnn(&self) -> u16 {
+        self.nnn
     }
 }
