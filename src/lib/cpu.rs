@@ -1,5 +1,6 @@
 use crate::instruction::Instruction;
 use crate::memory::Memory;
+use rand::{thread_rng, Rng};
 
 // Chip-8 instructions are 2 bytes long
 pub struct CPU {
@@ -52,6 +53,7 @@ impl CPU {
             0x9 => self.opcode_9(instr),
             0xA => self.opcode_A(instr),
             0xB => self.opcode_B(instr),
+            0xC => self.opcode_C(instr),
             _ => Err(stringify!("Couldn't execute instruction: {}", instr).to_string()),
         }
     }
@@ -220,6 +222,14 @@ impl CPU {
     // Bnnn - JP V0, addr: Jump to location nnn + V0
     fn opcode_B(&mut self, instr: Instruction) -> Result<(), String> {
         self.pc = instr.nnn() + (self.reg[0x0] as u16);
+        Ok(())
+    }
+
+    // Cxkk - RND Vx, byte: Set Vx = random byte AND kk.
+    fn opcode_C(&mut self, instr: Instruction) -> Result<(), String> {
+        let rnd_num = thread_rng().gen::<u8>();
+        self.reg[instr.x() as usize] = rnd_num & instr.kk();
+
         Ok(())
     }
 }
