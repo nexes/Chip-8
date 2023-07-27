@@ -6,6 +6,7 @@ pub struct Memory {
     rom_location: u16,
     ram: [u8; 0x1000],
     stack: [u16; 16],
+    sp: usize,
 }
 
 impl Memory {
@@ -14,6 +15,7 @@ impl Memory {
             rom_location: 0x200,
             ram: [0; 0x1000],
             stack: [0; 16],
+            sp: 0,
         };
 
         // load the static font starting at memory location 0x000
@@ -80,6 +82,21 @@ impl Memory {
         Ok(self.ram[loc as usize])
     }
 
+    // remove and return the value on top of the stack
+    pub(crate) fn pop_stack(&mut self) -> u16 {
+        self.sp -= 1;
+        self.stack[self.sp]
+    }
+
+    // push a value to the top of the stack
+    pub(crate) fn push_stack(&mut self, val: u16) {
+        self.stack[self.sp] = val;
+        self.sp += 1;
+    }
+
+    // print the contents of the stack
+    pub(crate) fn print_stack(&self) {}
+
     // print the contents of the stack from 0x000 to 0xFFF inclusive
     pub(crate) fn print_memory(&self) {
         let mut addr: u16 = 0x000;
@@ -95,7 +112,4 @@ impl Memory {
         }
         println!("");
     }
-
-    // print the contents of the stack
-    pub(crate) fn print_stack(&self) {}
 }
