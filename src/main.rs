@@ -1,10 +1,9 @@
-use emulator::{Memory, System, CPU};
+use emulator::{Display, System};
 
-fn main() {
-    let mem = Memory::allocate();
-    let cpu = CPU::init();
-    let mut sys = System::create(cpu, mem);
+fn main() -> Result<(), String> {
+    let display = Display::create("Chip-8".to_string(), 640, 380);
+    let mut system = System::create(display);
 
-    sys.load_rom("test_opcode.ch8").expect("Loaded ROM failed");
-    sys.run();
+    system.load_rom("test_opcode.ch8")?;
+    system.run()
 }
