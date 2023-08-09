@@ -16,8 +16,6 @@ pub(crate) struct Instruction {
     nnn: u16,
 }
 
-// impl index create an enum???
-
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.itype {
