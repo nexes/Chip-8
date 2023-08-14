@@ -56,12 +56,12 @@ impl CPU {
             0x7 => self.opcode_7(instr),
             0x8 => self.opcode_8(instr),
             0x9 => self.opcode_9(instr),
-            0xA => self.opcode_A(instr),
-            0xB => self.opcode_B(instr),
-            0xC => self.opcode_C(instr),
-            0xD => self.opcode_D(instr, flags),
-            0xE => self.opcode_E(instr, flags),
-            0xF => self.opcode_F(instr, mem, flags),
+            0xA => self.opcode_a(instr),
+            0xB => self.opcode_b(instr),
+            0xC => self.opcode_c(instr),
+            0xD => self.opcode_d(instr, mem, flags),
+            0xE => self.opcode_e(instr, flags),
+            0xF => self.opcode_f(instr, mem, flags),
             _ => Err(stringify!("Couldn't execute instruction: {}", instr).to_string()),
         }
     }
@@ -75,7 +75,10 @@ impl CPU {
         mem: &mut Memory,
     ) -> Result<(), String> {
         match instr.kk() {
-            0xE0 => flags.clear = true,
+            0xE0 => {
+                flags.clear = true;
+                mem.clear_vram();
+            }
             0xEE => {
                 self.pc = mem.pop_stack();
                 self.sp -= 1;
@@ -99,7 +102,7 @@ impl CPU {
         mem.push_stack(self.pc);
         self.sp += 1;
         self.pc = instr.nnn();
-
+        
         Ok(())
     }
 
@@ -138,7 +141,9 @@ impl CPU {
 
     // 7xkk - ADD Vx, byte, set Vx = Vx + kk
     fn opcode_7(&mut self, instr: Instruction) -> Result<(), String> {
-        self.reg[instr.x() as usize] += instr.kk(); // overflow??
+        let x_val = self.reg[instr.x() as usize];
+
+        self.reg[instr.x() as usize] = x_val.wrapping_add(instr.kk());
         Ok(())
     }
 
@@ -159,7 +164,8 @@ impl CPU {
 
             // 8xy4 - ADD Vx, Vy: Set Vx = Vx + Vy, set Vf = carry
             0x4 => {
-                let sum: u16 = (self.reg[instr.x() as usize] + self.reg[instr.y() as usize]).into();
+                let sum: u16 =
+                    self.reg[instr.x() as usize] as u16 + self.reg[instr.y() as usize] as u16;
                 if sum > 255 {
                     self.reg[0xF] = 1;
                 } else {
@@ -205,7 +211,7 @@ impl CPU {
             0xE => {
                 let vx = instr.x() as usize;
 
-                self.reg[0xF] = self.reg[vx] & 0x80;
+                self.reg[0xF] = (self.reg[vx] & 0x80) >> 7;
                 self.reg[vx] = self.reg[vx] << 1;
             }
             _ => {
@@ -230,19 +236,19 @@ impl CPU {
     }
 
     // Annn - LD I, addr: Set I = nnn
-    fn opcode_A(&mut self, instr: Instruction) -> Result<(), String> {
+    fn opcode_a(&mut self, instr: Instruction) -> Result<(), String> {
         self.i = instr.nnn();
         Ok(())
     }
 
     // Bnnn - JP V0, addr: Jump to location nnn + V0
-    fn opcode_B(&mut self, instr: Instruction) -> Result<(), String> {
+    fn opcode_b(&mut self, instr: Instruction) -> Result<(), String> {
         self.pc = instr.nnn() + (self.reg[0x0] as u16);
         Ok(())
     }
 
     // Cxkk - RND Vx, byte: Set Vx = random byte AND kk.
-    fn opcode_C(&mut self, instr: Instruction) -> Result<(), String> {
+    fn opcode_c(&mut self, instr: Instruction) -> Result<(), String> {
         let rnd_num = thread_rng().gen::<u8>();
         self.reg[instr.x() as usize] = rnd_num & instr.kk();
 
@@ -250,14 +256,50 @@ impl CPU {
     }
 
     // Dxyn - DRW Vx, Vy, nibble
-    // the drawing will be handled from the display object
-    fn opcode_D(&mut self, instr: Instruction, flags: &mut Flags) -> Result<(), String> {
+    // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+    fn opcode_d(
+        &mut self,
+        instr: Instruction,
+        mem: &mut Memory,
+        flags: &mut Flags,
+    ) -> Result<(), String> {
+        let x_cord = self.reg[instr.x() as usize] as usize;
+        let y_cord = self.reg[instr.y() as usize] as usize;
+        let mut collide = false;
+
+        let sprite_data = mem.read_n_bytes(instr.n() as usize, self.i as usize)?;
+        let pixels = mem.get_vram();
+
+        for i in 0..sprite_data.len() {
+            let byte = sprite_data[i];
+            let mut bitmask = 0x80;
+
+            for j in 0..8 {
+                let bit = (byte & bitmask) >> 7 - j;
+                bitmask >>= 1;
+
+                if bit == 1 {
+                    let x = (x_cord + j) % 64;
+                    let y = (y_cord + i) % 32;
+                    let idx = y * 64 + x;
+
+                    collide = collide || pixels[idx as usize] == 1;
+                    pixels[idx as usize] ^= 1;
+                }
+            }
+        }
+
+        self.reg[0x0F] = match collide {
+            true => 1,
+            false => 0,
+        };
+
         flags.draw = true;
         Ok(())
     }
 
     // Ex9E, ExA1 opcodes
-    fn opcode_E(&mut self, instr: Instruction, flags: &mut Flags) -> Result<(), String> {
+    fn opcode_e(&mut self, instr: Instruction, flags: &mut Flags) -> Result<(), String> {
         let key = flags.key.as_u8();
 
         match instr.kk() {
@@ -282,7 +324,7 @@ impl CPU {
     }
 
     // Fx07 - Fx65 opcodes
-    fn opcode_F(
+    fn opcode_f(
         &mut self,
         instr: Instruction,
         mem: &mut Memory,
