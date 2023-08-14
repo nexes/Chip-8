@@ -5,15 +5,17 @@
 pub struct Memory {
     rom_location: u16,
     ram: [u8; 0x1000],
+    vram: [u8; 64 * 32],
     stack: [u16; 16],
     sp: usize,
 }
 
 impl Memory {
-    pub fn allocate() -> Memory {
+    pub(crate) fn allocate() -> Memory {
         let mut mem = Memory {
             rom_location: 0x200,
             ram: [0; 0x1000],
+            vram: [0; 64 * 32],
             stack: [0; 16],
             sp: 0,
         };
@@ -58,12 +60,29 @@ impl Memory {
         }
     }
 
+    // write a single byte to memory location
+    pub(crate) fn write_byte(&mut self, location: u16, val: u8) -> Result<(), String> {
+        if location >= 0x1000 {
+            return Err(stringify!("Invalid write memory location: {}", loc).to_string());
+        }
+
+        self.ram[location as usize] = val;
+        Ok(())
+    }
+
+    // clears the data from vram. Usually done because of the clear instruction
+    pub(crate) fn clear_vram(&mut self) {
+        for i in 0..self.vram.len() {
+            self.vram[i] = 0;
+        }
+    }
+
     // loc is the memory address likely taken from the PC register.
     // If the location is greater than 0xFFF and error is returned.
     // Chip-8 instructions are 2 bytes long stored in big-endian
     pub(crate) fn read_word(&self, loc: u16) -> Result<u16, String> {
         if loc > 0xFFF {
-            return Err(stringify!("Invalid memory location: {}", loc).to_string());
+            return Err(stringify!("Invalid read memory location: {}", loc).to_string());
         }
 
         let msb: u16 = self.ram[loc as usize] as u16;
@@ -80,6 +99,29 @@ impl Memory {
         }
 
         Ok(self.ram[loc as usize])
+    }
+
+    // read 'count' number of bytes out of memory starting from location 'loc'
+    pub(crate) fn read_n_bytes(&self, count: usize, loc: usize) -> Result<Vec<u8>, String> {
+        if loc + count >= self.ram.len() {
+            return Err(stringify!(
+                "Read memory out of bounds. Location: {}, Offset: {}",
+                loc,
+                count
+            )
+            .to_string());
+        }
+
+        let mut mem = Vec::new();
+        for i in 0..count {
+            mem.push(self.ram[loc + i]);
+        }
+        Ok(mem)
+    }
+
+    // get a copy of the contents of vram pixels
+    pub(crate) fn get_vram(&mut self) -> &mut [u8; 32 * 64] {
+        &mut self.vram
     }
 
     // remove and return the value on top of the stack
