@@ -112,7 +112,7 @@ impl CPU {
         mem.push_stack(self.pc);
         self.sp += 1;
         self.pc = instr.nnn();
-        
+
         Ok(())
     }
 
@@ -176,6 +176,7 @@ impl CPU {
             0x4 => {
                 let sum: u16 =
                     self.reg[instr.x() as usize] as u16 + self.reg[instr.y() as usize] as u16;
+
                 if sum > 255 {
                     self.reg[0xF] = 1;
                 } else {
@@ -189,10 +190,9 @@ impl CPU {
                 let x = self.reg[instr.x() as usize];
                 let y = self.reg[instr.y() as usize];
 
+                self.reg[0xF] = 0;
                 if x > y {
                     self.reg[0xF] = 1;
-                } else {
-                    self.reg[0xF] = 0;
                 }
                 // wrapping_sub to keep from overflowing
                 self.reg[instr.x() as usize] = x.wrapping_sub(y);
@@ -202,17 +202,16 @@ impl CPU {
                 let vx = instr.x() as usize;
 
                 self.reg[0xF] = self.reg[vx] & 0x01;
-                self.reg[vx] = self.reg[vx] >> 1;
+                self.reg[vx] >>= 1;
             }
             // 8xy7 - SUBN Vx, Vy: Set Vx = Vy - Vx, set VF = NOT borrow
             0x7 => {
                 let x = self.reg[instr.x() as usize];
                 let y = self.reg[instr.y() as usize];
 
+                self.reg[0xF] = 0;
                 if y > x {
                     self.reg[0xF] = 1;
-                } else {
-                    self.reg[0xF] = 0;
                 }
                 // wrapping_sub to keep from overflowing
                 self.reg[instr.x() as usize] = y.wrapping_sub(x);
@@ -222,7 +221,7 @@ impl CPU {
                 let vx = instr.x() as usize;
 
                 self.reg[0xF] = (self.reg[vx] & 0x80) >> 7;
-                self.reg[vx] = self.reg[vx] << 1;
+                self.reg[vx] <<= 1;
             }
             _ => {
                 return Err(stringify!("Unrecognized 8 opcode {}", instr).to_string());
@@ -385,16 +384,15 @@ impl CPU {
             // The interpreter copies the values of registers V0 through Vx into memory,
             // starting at the address in I
             0x55 => {
-                for loc in 0..self.reg.len() {
-                    mem.write_byte(self.i + loc as u16, self.reg[loc as usize])
-                        .unwrap();
+                for loc in 0..=instr.x() {
+                    mem.write_byte(self.i + loc as u16, self.reg[loc as usize])?;
                 }
             }
 
             //Fx65 - LD Vx, [I], Read regs V0 through Vx from memory starting at location I.
             0x65 => {
-                for loc in 0..self.reg.len() {
-                    self.reg[loc] = mem.read_byte(self.i + loc as u16).unwrap();
+                for loc in 0..=instr.x() {
+                    self.reg[loc as usize] = mem.read_byte(self.i + loc as u16)?;
                 }
             }
             _ => return Err(stringify!("Unrecognized F opcode {}", instr).to_string()),

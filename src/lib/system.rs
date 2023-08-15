@@ -87,7 +87,7 @@ impl System {
             }
 
             self.cpu.tick_timer();
-            thread::sleep(time::Duration::from_millis(20));
+            thread::sleep(time::Duration::from_millis(16));
         }
 
         Ok(())
