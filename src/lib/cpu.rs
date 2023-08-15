@@ -39,6 +39,16 @@ impl CPU {
         loc
     }
 
+    pub(crate) fn tick_timer(&mut self) {
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+
+        if self.st > 0 {
+            self.st -= 1;
+        }
+    }
+
     pub(crate) fn execute(
         &mut self,
         instr: Instruction,
